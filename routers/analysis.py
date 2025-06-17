@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 from db.mongo import collection
 from services.sentiment import analyze_text
+from services.topics import analyze_topics
 
 router = APIRouter()
 
@@ -8,10 +9,10 @@ router = APIRouter()
     "/reviews/analysis",
     tags=["Отзывы"],
     summary="Анализ отзывов",
-    description="Возвращает агрегированную статистику по тональности отзывов."
+    description="Возвращает агрегированную статистику по тональности отзывов и список выделенных тем."
 )
 def analyze_reviews():
-    reviews = list(collection.find({"isModeration": False}))  # только опубликованные
+    reviews = list(collection.find({"isModeration": True}))
 
     summary = {
         "total": 0,
@@ -37,6 +38,7 @@ def analyze_reviews():
             "text": feedback,
             "sentiment": sentiment["label"],
             "score": sentiment["score"],
+            "topics": analyze_topics(feedback),
             "createdAt": r.get("createdAt")
         })
 
