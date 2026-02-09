@@ -1,45 +1,73 @@
 from fastapi import APIRouter
+
 from db.mongo import collection
 from services.sentiment import analyze_text
 from services.topics import analyze_topics
+from schemas.reviews import (
+    ReviewsAnalysisResponse,
+    ReviewsAnalysisStats,
+    ReviewAnalysisItem,
+    SentimentLabel,
+    TopicScore,
+)
+
+from schemas.errors import ErrorResponse
 
 router = APIRouter()
+
 
 @router.get(
     "/reviews/analysis",
     tags=["Отзывы"],
     summary="Анализ отзывов",
-    description="Возвращает агрегированную статистику по тональности отзывов и список выделенных тем."
+    description="Возвращает агрегированную статистику по тональности отзывов и список выделенных тем.",
+    response_model=ReviewsAnalysisResponse,
+    responses={
+        400: {"model": ErrorResponse, "description": "Некорректные данные (например пустой отзыв)"},
+        422: {"model": ErrorResponse, "description": "Ошибка валидации запроса FastAPI"},
+        500: {"model": ErrorResponse, "description": "Внутренняя ошибка сервера"},
+        502: {"model": ErrorResponse, "description": "Ошибка внешней NLP-модели"},
+    },
 )
-def analyze_reviews():
-    reviews = list(collection.find({"isModeration": True}))
+def analyze_reviews() -> ReviewsAnalysisResponse:
+    reviews = collection.find({"isModeration": True})
 
-    summary = {
+    stats = {
         "total": 0,
         "positive": 0,
         "neutral": 0,
         "negative": 0,
-        "detailed": []
     }
+
+    detailed: list[ReviewAnalysisItem] = []
 
     for r in reviews:
         feedback = r.get("feedback", "")
         sentiment = analyze_text(feedback)
-        label = sentiment["label"].lower()
 
-        summary["total"] += 1
-        if label in summary:
-            summary[label] += 1
+        label = SentimentLabel(sentiment["label"])
 
-        summary["detailed"].append({
-            "_id": str(r["_id"]),
-            "name": r.get("name", "аноним"),
-            "city": r.get("city", ""),
-            "text": feedback,
-            "sentiment": sentiment["label"],
-            "score": sentiment["score"],
-            "topics": analyze_topics(feedback),
-            "createdAt": r.get("createdAt")
-        })
+        stats["total"] += 1
+        stats[label.value] += 1
 
-    return summary
+        detailed.append(
+            ReviewAnalysisItem(
+                id=str(r["_id"]),
+                name=r.get("name", "аноним"),
+                city=r.get("city"),
+                text=feedback,
+                sentiment=label,
+                score=sentiment["score"],
+                topics=[
+                    TopicScore(topic=t["label"], score=t["score"])
+                    for t in analyze_topics(feedback)
+                ],
+                createdAt=r.get("createdAt"),
+            )
+        )
+
+    return ReviewsAnalysisResponse(
+        stats=ReviewsAnalysisStats(**stats),
+        detailed=detailed,
+    )
+
