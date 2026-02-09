@@ -1,0 +1,316 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Review Analysis API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/v1/reviews/analysis": {
+      "get": {
+        "tags": [
+          "Отзывы"
+        ],
+        "summary": "Анализ отзывов",
+        "description": "Возвращает агрегированную статистику по тональности отзывов и список выделенных тем.",
+        "operationId": "analyze_reviews_v1_reviews_analysis_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewsAnalysisResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Некорректные данные (например пустой отзыв)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Ошибка валидации запроса FastAPI",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Внутренняя ошибка сервера",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Ошибка внешней NLP-модели",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ErrorCode": {
+        "type": "string",
+        "enum": [
+          "VALIDATION_ERROR",
+          "NOT_FOUND",
+          "UNAUTHORIZED",
+          "FORBIDDEN",
+          "CONFLICT",
+          "UPSTREAM_ERROR",
+          "INTERNAL_ERROR"
+        ],
+        "title": "ErrorCode"
+      },
+      "ErrorDetail": {
+        "properties": {
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field",
+            "description": "Поле/путь, к которому относится ошибка"
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Message"
+          },
+          "meta": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Meta",
+            "description": "Доп. данные (без персональных данных)"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "ErrorDetail"
+      },
+      "ErrorResponse": {
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ErrorCode"
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Message"
+          },
+          "details": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorDetail"
+            },
+            "type": "array",
+            "title": "Details"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ErrorResponse"
+      },
+      "ReviewAnalysisItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "sentiment": {
+            "$ref": "#/components/schemas/SentimentLabel"
+          },
+          "score": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Score"
+          },
+          "topics": {
+            "items": {
+              "$ref": "#/components/schemas/TopicScore"
+            },
+            "type": "array",
+            "title": "Topics"
+          },
+          "createdAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Createdat"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "city",
+          "text",
+          "sentiment",
+          "score",
+          "topics",
+          "createdAt"
+        ],
+        "title": "ReviewAnalysisItem"
+      },
+      "ReviewsAnalysisResponse": {
+        "properties": {
+          "stats": {
+            "$ref": "#/components/schemas/ReviewsAnalysisStats"
+          },
+          "detailed": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewAnalysisItem"
+            },
+            "type": "array",
+            "title": "Detailed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "stats",
+          "detailed"
+        ],
+        "title": "ReviewsAnalysisResponse"
+      },
+      "ReviewsAnalysisStats": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "positive": {
+            "type": "integer",
+            "title": "Positive"
+          },
+          "neutral": {
+            "type": "integer",
+            "title": "Neutral"
+          },
+          "negative": {
+            "type": "integer",
+            "title": "Negative"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "positive",
+          "neutral",
+          "negative"
+        ],
+        "title": "ReviewsAnalysisStats"
+      },
+      "SentimentLabel": {
+        "type": "string",
+        "enum": [
+          "positive",
+          "neutral",
+          "negative"
+        ],
+        "title": "SentimentLabel"
+      },
+      "TopicScore": {
+        "properties": {
+          "topic": {
+            "type": "string",
+            "title": "Topic"
+          },
+          "score": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Score"
+          }
+        },
+        "type": "object",
+        "required": [
+          "topic",
+          "score"
+        ],
+        "title": "TopicScore"
+      }
+    }
+  }
+}
