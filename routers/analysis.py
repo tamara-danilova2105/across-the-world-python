@@ -58,13 +58,11 @@ def analyze_reviews() -> ReviewsAnalysisResponse:
                 text=feedback,
                 sentiment=label,
                 score=sentiment["score"],
-                topics=[
-                    TopicScore(topic=t["label"], score=t["score"])
-                    for t in analyze_topics(feedback)
-                ],
+                topics=analyze_topics(feedback),
                 createdAt=r.get("createdAt"),
             )
-        )
+        )   
+
 
     return ReviewsAnalysisResponse(
         stats=ReviewsAnalysisStats(**stats),

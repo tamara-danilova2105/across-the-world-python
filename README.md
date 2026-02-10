@@ -149,7 +149,7 @@ macOS / Linux:
 
 3. Запустить сервер
 
-    uvicorn main:app --reload
+    uvicorn main:app
 
 ---
 
