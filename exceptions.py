@@ -14,7 +14,7 @@ def install_exception_handlers(app: FastAPI) -> None:
             details=getattr(exc, "details", []) or [],
             request_id=getattr(request.state, "request_id", None),
         )
-        return JSONResponse(status_code=exc.status_code, content=payload.model_dump())
+        return JSONResponse(status_code=exc.status_code, content=payload.model_dump(mode="json"))
 
     @app.exception_handler(Exception)
     async def unhandled_handler(request: Request, exc: Exception):
@@ -24,4 +24,4 @@ def install_exception_handlers(app: FastAPI) -> None:
             details=[],
             request_id=getattr(request.state, "request_id", None),
         )
-        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=payload.model_dump())
+        return JSONResponse(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, content=payload.model_dump(mode="json"))
