@@ -8,7 +8,6 @@ from schemas.reviews import (
     ReviewsAnalysisStats,
     ReviewAnalysisItem,
     SentimentLabel,
-    TopicScore,
 )
 
 from schemas.errors import ErrorResponse
@@ -23,8 +22,6 @@ router = APIRouter()
     description="Возвращает агрегированную статистику по тональности отзывов и список выделенных тем.",
     response_model=ReviewsAnalysisResponse,
     responses={
-        400: {"model": ErrorResponse, "description": "Некорректные данные (например пустой отзыв)"},
-        422: {"model": ErrorResponse, "description": "Ошибка валидации запроса FastAPI"},
         500: {"model": ErrorResponse, "description": "Внутренняя ошибка сервера"},
         502: {"model": ErrorResponse, "description": "Ошибка внешней NLP-модели"},
     },
