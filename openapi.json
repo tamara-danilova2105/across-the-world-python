@@ -24,26 +24,6 @@
               }
             }
           },
-          "400": {
-            "description": "Некорректные данные (например пустой отзыв)",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Ошибка валидации запроса FastAPI",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
           "500": {
             "description": "Внутренняя ошибка сервера",
             "content": {
