@@ -45,7 +45,7 @@ def detect_topics(text: str) -> list[TopicScore]:
             )
         )
 
-        return topics
+    return topics
     
     
 def rank_topics(
