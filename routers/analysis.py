@@ -39,10 +39,22 @@ def analyze_reviews() -> ReviewsAnalysisResponse:
     detailed: list[ReviewAnalysisItem] = []
 
     for r in reviews:
-        feedback = r.get("feedback", "")
-        sentiment = analyze_text(feedback)
+        feedback = str(r.get("feedback") or "").strip()
 
-        label = SentimentLabel(sentiment["label"])
+        if not feedback:
+            continue
+
+        try: 
+            sentiment = analyze_text(feedback)
+            label = SentimentLabel(sentiment["label"])
+        except Exception:
+            continue
+
+
+        try: 
+            topics = analyze_topics(feedback)
+        except Exception:
+            continue
 
         stats["total"] += 1
         stats[label.value] += 1
@@ -55,7 +67,7 @@ def analyze_reviews() -> ReviewsAnalysisResponse:
                 text=feedback,
                 sentiment=label,
                 score=sentiment["score"],
-                topics=analyze_topics(feedback),
+                topics=topics,
                 createdAt=r.get("createdAt"),
             )
         )   
