@@ -12,6 +12,25 @@ logger = logging.getLogger(__name__)
 # Допустимые лейблы в ответе нашей модели/контракта
 _ALLOWED = {"positive", "neutral", "negative"}
 
+NEGATIVE_MARKERS = [
+    "не понравилось",
+    "не понравился",
+    "не понравилась",
+    "грязный",
+    "грязная",
+    "грязное",
+    "грязно",
+    "плохо",
+    "ужасно",
+    "ужасная",
+    "ужасный",
+    "ужасное",
+    "задержали",
+    "задержка",
+    "опоздал",
+    "опоздала",
+    "опоздали",
+]
 
 @lru_cache(maxsize=1)
 def get_sentiment_model():
@@ -41,6 +60,33 @@ def get_sentiment_model():
             code=ErrorCode.UPSTREAM_ERROR,
             message="Не удалось инициализировать NLP-модель тональности",
         ) from exc
+    
+def apply_business_rules(text: str, sentiment: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Усиливает результат модели доменными правилами.
+
+    Это временный hybrid-подход:
+    HuggingFace model + простые правила для явно негативных отзывов.
+    """
+    text_lower = text.lower()
+
+    has_negative_marker = any(
+        marker in text_lower
+        for marker in NEGATIVE_MARKERS
+    )
+
+    if has_negative_marker and sentiment["label"] != "negative":
+        logger.info(
+            "Sentiment overridden by business rule: %r -> negative",
+            sentiment,
+        )
+
+        return {
+            "label": "negative",
+            "score": max(float(sentiment["score"]), 0.8),
+        }
+
+    return sentiment
 
 
 def analyze_text(text: str) -> Dict[str, Any]:
@@ -102,7 +148,9 @@ def analyze_text(text: str) -> Dict[str, Any]:
             details=[ErrorDetail(field="label", message=f"Unknown label: {label}")],
         )
 
-    return {
+    normalized = {
         "label": label,
         "score": round(score, 2),
     }
+
+    return apply_business_rules(text, normalized)
