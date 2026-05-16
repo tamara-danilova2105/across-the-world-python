@@ -2,16 +2,10 @@ import logging
 from functools import lru_cache
 
 from schemas.reviews import TopicScore
+from services.topic_labels import TOPIC_LABELS, get_topic_code_by_label
 
 logger = logging.getLogger(__name__)
 
-LABELS = [
-    "качество питания",
-    "работа гида",
-    "маршрут тура",
-    "логистика и трансфер",
-    "проживание и отель",
-]
 
 TOPIC_THRESHOLD = 0.3
 MAX_TOPICS = 3
@@ -30,7 +24,7 @@ def get_topic_model():
 def detect_topics(text: str) -> list[TopicScore]:
     result = get_topic_model()(
             text, 
-            candidate_labels=LABELS,
+            candidate_labels=list(TOPIC_LABELS.values()),
             multi_label=True,
             hypothesis_template="Этот отзыв про {}.",
     )
@@ -38,8 +32,15 @@ def detect_topics(text: str) -> list[TopicScore]:
     topics: list[TopicScore] = []
 
     for label, score in zip(result.get('labels', []), result.get('scores', [])):
+        code = get_topic_code_by_label(label)
+
+        if not code:
+            logger.warning("Unknown topic label from model: %s", label)
+            continue
+
         topics.append(
             TopicScore(
+                code=code,
                 topic=label,
                 score=round(float(score), 2)
             )

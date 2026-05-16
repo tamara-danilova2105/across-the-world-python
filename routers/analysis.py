@@ -1,16 +1,16 @@
-from fastapi import APIRouter
+from typing import Optional
 
-from db.mongo import collection
-from services.sentiment import analyze_text
-from services.topics import analyze_topics
-from schemas.reviews import (
-    ReviewsAnalysisResponse,
-    ReviewsAnalysisStats,
-    ReviewAnalysisItem,
-    SentimentLabel,
-)
+from fastapi import APIRouter, Query
 
 from schemas.errors import ErrorResponse
+from schemas.reviews import (
+    ReviewsAnalysisResponse,
+    ReviewsSearchResponse,
+    SentimentLabel,
+)
+from services.reviews_analysis import analyze_reviews_service
+from services.reviews_search import search_reviews_service
+
 
 router = APIRouter()
 
@@ -27,54 +27,42 @@ router = APIRouter()
     },
 )
 def analyze_reviews() -> ReviewsAnalysisResponse:
-    reviews = collection.find({"isModeration": True})
-
-    stats = {
-        "total": 0,
-        "positive": 0,
-        "neutral": 0,
-        "negative": 0,
-    }
-
-    detailed: list[ReviewAnalysisItem] = []
-
-    for r in reviews:
-        feedback = str(r.get("feedback") or "").strip()
-
-        if not feedback:
-            continue
-
-        try: 
-            sentiment = analyze_text(feedback)
-            label = SentimentLabel(sentiment["label"])
-        except Exception:
-            continue
+    return analyze_reviews_service()
 
 
-        try: 
-            topics = analyze_topics(feedback)
-        except Exception:
-            continue
-
-        stats["total"] += 1
-        stats[label.value] += 1
-
-        detailed.append(
-            ReviewAnalysisItem(
-                id=str(r["_id"]),
-                name=r.get("name", "аноним"),
-                city=r.get("city"),
-                text=feedback,
-                sentiment=label,
-                score=sentiment["score"],
-                topics=topics,
-                createdAt=r.get("createdAt"),
-            )
-        )   
-
-
-    return ReviewsAnalysisResponse(
-        stats=ReviewsAnalysisStats(**stats),
-        detailed=detailed,
+@router.get(
+    "/reviews/search",
+    tags=["Отзывы"],
+    summary="Hybrid semantic search по отзывам",
+    description="Ищет отзывы по смыслу с фильтрацией по тональности и теме.",
+    response_model=ReviewsSearchResponse,
+    responses={
+        500: {"model": ErrorResponse, "description": "Внутренняя ошибка сервера"},
+        502: {"model": ErrorResponse, "description": "Ошибка NLP/embedding-модели"},
+    },
+)
+def search_reviews(
+    q: str = Query(..., min_length=2, description="Поисковый запрос"),
+    limit: int = Query(5, ge=1, le=20, description="Количество результатов"),
+    min_score: float = Query(
+        0.25,
+        ge=0.0,
+        le=1.0,
+        description="Минимальный similarity score",
+    ),
+    sentiment: Optional[SentimentLabel] = Query(
+        None,
+        description="Фильтр по тональности",
+    ),
+    topic: Optional[str] = Query(
+        None,
+        description="Фильтр по теме: food, guide, route, logistics, hotel",
+    ),
+) -> ReviewsSearchResponse:
+    return search_reviews_service(
+        query=q,
+        limit=limit,
+        min_score=min_score,
+        sentiment_filter=sentiment,
+        topic_filter=topic,
     )
-

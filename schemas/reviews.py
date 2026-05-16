@@ -12,6 +12,7 @@ class SentimentLabel(str, Enum):
 
 
 class TopicScore(BaseModel):
+    code: str
     topic: str
     score: float = Field(..., ge=0.0, le=1.0)
 
@@ -41,3 +42,28 @@ class ReviewsAnalysisResponse(BaseModel):
 
     stats: ReviewsAnalysisStats
     detailed: List[ReviewAnalysisItem]
+
+class ReviewSearchItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: str
+    name: str
+    city: Optional[str]
+    text: str
+
+    score: float = Field(..., ge=0.0, le=1.0)
+
+    sentiment: SentimentLabel
+    sentimentScore: float = Field(..., ge=0.0, le=1.0)
+
+    topics: List[TopicScore]
+
+    createdAt: Optional[datetime]
+
+
+class ReviewsSearchResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    query: str
+    total: int
+    results: List[ReviewSearchItem]
